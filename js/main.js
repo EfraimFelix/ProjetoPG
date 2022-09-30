@@ -10,7 +10,11 @@ var movement = null;
 var movement_enable = false;
 var rotation = null;
 
+var shot = false;
+
 var gameStatus = null;
+
+var cd = 50; // Cooldown do tiro
 
 // Ativa comandos do player
 document.addEventListener("keydown", (event) => {
@@ -207,9 +211,11 @@ function render(time) {
 
   renderPlayer();
   renderAsteroids(time);
+  renderBullet();
 
   verifyCollisionAsteroids();
   verifyCollisionPlayer();
+  verifyCollisionBullet();
 
   if (gameStatus != "GAMEOVER") requestAnimationFrame(render);
 }
@@ -340,6 +346,80 @@ function renderAsteroids(time) {
   }
 }
 
+// Gera o tiro do jogador
+function renderBullet() {
+  cd--;
+  const obj_player = scene.obj_player;
+
+  let angle = obj_player.angle;
+
+  const distorX = 2 * Math.cos(angle + Math.PI / 2);
+  const distorY = 2 * Math.sin(angle + Math.PI / 2);
+
+  let coordX = obj_player.position[1] * 2 + distorX;
+  let coordY = -obj_player.position[0] * 2 + distorY;
+
+  if (shot && cd < 0) {
+    cd = 10;
+    if (scene.obj_player.bullets.length < 3)
+      scene.obj_player.bullets.push({
+        direction: [0.0, 0.0, 0],
+        position: [coordX, coordY, 0],
+        angle: angle,
+        size: 0.5,
+        velocity: [
+          Math.cos(angle + Math.PI / 2),
+          Math.sin(angle + Math.PI / 2),
+          0,
+        ],
+        lifetime: 40,
+      });
+  }
+
+  for (let i = 0; i < scene.obj_player.bullets.length; i++) {
+    const obj_bullet = scene.obj_player.bullets[i];
+
+    obj_bullet.lifetime--;
+
+    obj_bullet.position[0] += obj_bullet.velocity[0];
+    obj_bullet.position[1] += obj_bullet.velocity[1];
+
+    let u_world = m4.identity();
+    u_world = m4.multiply(
+      u_world,
+      m4.scale(
+        u_world,
+        obj_bullet.size * 0.1,
+        obj_bullet.size * 0.1,
+        obj_bullet.size * 0.1
+      )
+    );
+    u_world = m4.multiply(
+      u_world,
+      m4.translation(obj_bullet.position[0], obj_bullet.position[1], 0.1)
+    );
+
+    u_world = m4.multiply(u_world, scene.u_obj_ball);
+    gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
+    gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
+    // gl.uniform4fv(scene.v_color, [1, 1, 0, 1]);
+    gl.drawArrays(gl.TRIANGLES, 0, model.geometry.position.length / 3);
+
+    if (obj_bullet.lifetime <= 0) {
+      scene.obj_player.bullets.splice(i, 1);
+    }
+  }
+
+  const screen = {
+    angle: obj_player.angle.toFixed(3),
+    playerX: obj_player.position[0].toFixed(3),
+    playerY: obj_player.position[1].toFixed(3),
+    bala_X: coordX.toFixed(3),
+    bala_Y: coordY.toFixed(3),
+    cd: cd,
+  };
+}
+
 // Verifica a colisão entre cada asteroide
 function verifyCollisionAsteroids() {
   for (let i = 0; i < scene.objs_asteroids.length; i++)
@@ -427,6 +507,38 @@ function verifyCollisionPlayer() {
     const distSqr = xd * xd + yd * yd;
 
     if (distSqr <= sqrRadius) gameStatus = "GAMEOVER";
+  }
+}
+
+// Verifica a colisão entre o tiro e os asteroides
+function verifyCollisionBullet() {
+  for (let i = 0; i < scene.obj_player.bullets.length; i++) {
+    let bullet = scene.obj_player.bullets[i];
+
+    for (let j = 0; j < scene.objs_asteroids.length; j++) {
+      let obj2 = scene.objs_asteroids[j];
+
+      const posBullet = getPositions(bullet.size, bullet.position);
+      const posEnemy = getPositions(obj2.size, obj2.position);
+
+      const xd = posBullet[0] - posEnemy[0];
+      const yd = posBullet[1] - posEnemy[1];
+
+      const sumRadius = parseFloat(bullet.size) + parseFloat(obj2.size);
+      const sqrRadius = sumRadius * sumRadius;
+
+      const distSqr = Math.sqrt(xd * xd + yd * yd);
+
+      if (distSqr <= sqrRadius) {
+        scene.objs_asteroids.splice(j, 1);
+        const elem = document.getElementById("score");
+        let score = parseInt(elem.innerHTML);
+        score++;
+        elem.innerHTML = score;
+
+        if (scene.objs_asteroids.length == 0) gameStatus = "WIN";
+      }
+    }
   }
 }
 
