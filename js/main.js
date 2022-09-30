@@ -107,19 +107,22 @@ function loadScene() {
     u_obj_ball,
     objs_asteroids: [
       {
-        direction: [-0.1, -0.1, 0],
+        direction: [-0.2, 0, 0],
         position: [5, 5, 0],
         size: 1,
+        colide: false,
       },
       {
-        direction: [-0.15, 0.1, 0],
-        position: [7, -8, 0],
+        direction: [0.1, 0.2, 0],
+        position: [-8, -5, 0],
         size: 1,
+        colide: false,
       },
       {
-        direction: [0.1, 0.1, 0],
+        direction: [0.1, -0.05, 0],
         position: [-10, 10, 0],
         size: 1,
+        colide: false,
       },
     ],
     obj_player: {
@@ -202,6 +205,8 @@ function render(time) {
 
   renderPlayer();
   renderAsteroids(time);
+
+  verifyCollisionAsteroids();
 
   requestAnimationFrame(render);
 }
@@ -329,6 +334,75 @@ function renderAsteroids(time) {
     gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
     // gl.uniform4fv(scene.v_color, [1, 0, 0, 1]);
     gl.drawArrays(gl.TRIANGLES, 0, model.geometry.position.length / 3);
+  }
+}
+
+// Verifica a colisão entre cada asteroide
+function verifyCollisionAsteroids() {
+  for (let i = 0; i < scene.objs_asteroids.length; i++)
+    scene.objs_asteroids[i].colide = false;
+
+  // Verificando colisão entre asteroids na cena
+  for (let i = 0; i < scene.objs_asteroids.length; i++) {
+    let obj_enemy_1 = scene.objs_asteroids[i];
+
+    for (let j = 0; j < scene.objs_asteroids.length; j++) {
+      let obj_enemy_2 = scene.objs_asteroids[j];
+      if (j == i || obj_enemy_1.colide) continue;
+
+      const posEnemy1 = getPositions(obj_enemy_1.size, obj_enemy_1.position);
+      const posEnemy2 = getPositions(obj_enemy_2.size, obj_enemy_2.position);
+
+      const xd = posEnemy1[0] - posEnemy2[0];
+      const yd = posEnemy1[1] - posEnemy2[1];
+
+      const sumRadius = (obj_enemy_1.size + obj_enemy_2.size) * 0.8;
+      const sqrRadius = sumRadius * sumRadius;
+
+      const distSqr = Math.sqrt(xd * xd + yd * yd);
+      
+      //Resolvendo colisao se houver
+      if (distSqr <= sqrRadius) {
+        scene.objs_asteroids[i].colide = true;
+
+        let nx = xd / distSqr;
+        let ny = yd / distSqr;
+
+        let scalar =
+          -2 *
+          (nx * scene.objs_asteroids[i].direction[0] +
+            ny * scene.objs_asteroids[i].direction[1]);
+
+        nx = nx * scalar;
+        ny = ny * scalar;
+
+        scene.objs_asteroids[i].direction[0] += nx;
+        scene.objs_asteroids[i].direction[1] += ny;
+
+        nx = -xd / distSqr;
+        ny = -yd / distSqr;
+
+        scalar =
+          -2 *
+          (nx * scene.objs_asteroids[j].direction[0] +
+            ny * scene.objs_asteroids[j].direction[1]);
+
+        nx = nx * scalar;
+        ny = ny * scalar;
+
+        scene.objs_asteroids[j].direction[0] += nx;
+        scene.objs_asteroids[j].direction[1] += ny;
+
+        scene.objs_asteroids[i].position[0] +=
+          scene.objs_asteroids[i].direction[0];
+        scene.objs_asteroids[i].position[1] +=
+          scene.objs_asteroids[i].direction[1];
+        scene.objs_asteroids[j].position[0] +=
+          scene.objs_asteroids[j].direction[0];
+        scene.objs_asteroids[j].position[1] +=
+          scene.objs_asteroids[j].direction[1];
+      }
+    }
   }
 }
 
