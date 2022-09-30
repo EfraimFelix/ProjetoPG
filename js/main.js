@@ -215,6 +215,7 @@ function render(time) {
 
   verifyCollisionAsteroids();
   verifyCollisionPlayer();
+  verifyCollisionBullet();
 
   if (gameStatus != "GAMEOVER") requestAnimationFrame(render);
 }
@@ -506,6 +507,38 @@ function verifyCollisionPlayer() {
     const distSqr = xd * xd + yd * yd;
 
     if (distSqr <= sqrRadius) gameStatus = "GAMEOVER";
+  }
+}
+
+// Verifica a colisão entre o tiro e os asteroides
+function verifyCollisionBullet() {
+  for (let i = 0; i < scene.obj_player.bullets.length; i++) {
+    let bullet = scene.obj_player.bullets[i];
+
+    for (let j = 0; j < scene.objs_asteroids.length; j++) {
+      let obj2 = scene.objs_asteroids[j];
+
+      const posBullet = getPositions(bullet.size, bullet.position);
+      const posEnemy = getPositions(obj2.size, obj2.position);
+
+      const xd = posBullet[0] - posEnemy[0];
+      const yd = posBullet[1] - posEnemy[1];
+
+      const sumRadius = parseFloat(bullet.size) + parseFloat(obj2.size);
+      const sqrRadius = sumRadius * sumRadius;
+
+      const distSqr = Math.sqrt(xd * xd + yd * yd);
+
+      if (distSqr <= sqrRadius) {
+        scene.objs_asteroids.splice(j, 1);
+        const elem = document.getElementById("score");
+        let score = parseInt(elem.innerHTML);
+        score++;
+        elem.innerHTML = score;
+
+        if (scene.objs_asteroids.length == 0) gameStatus = "WIN";
+      }
+    }
   }
 }
 
