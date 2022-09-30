@@ -10,6 +10,8 @@ var movement = null;
 var movement_enable = false;
 var rotation = null;
 
+var gameStatus = null;
+
 // Ativa comandos do player
 document.addEventListener("keydown", (event) => {
   const key = event.code;
@@ -207,8 +209,9 @@ function render(time) {
   renderAsteroids(time);
 
   verifyCollisionAsteroids();
+  verifyCollisionPlayer();
 
-  requestAnimationFrame(render);
+  if (gameStatus != "GAMEOVER") requestAnimationFrame(render);
 }
 
 // Renderiza o jogador
@@ -360,7 +363,7 @@ function verifyCollisionAsteroids() {
       const sqrRadius = sumRadius * sumRadius;
 
       const distSqr = Math.sqrt(xd * xd + yd * yd);
-      
+
       //Resolvendo colisao se houver
       if (distSqr <= sqrRadius) {
         scene.objs_asteroids[i].colide = true;
@@ -403,6 +406,27 @@ function verifyCollisionAsteroids() {
           scene.objs_asteroids[j].direction[1];
       }
     }
+  }
+}
+
+// Verifica Colisão entre o player e os asteroides
+function verifyCollisionPlayer() {
+  const obj_player = scene.obj_player;
+  for (let i = 0; i < scene.objs_asteroids.length; i++) {
+    let obj_enemy = scene.objs_asteroids[i];
+
+    const posPlayer = getPositions(obj_player.size, obj_player.position);
+    const posEnemy = getPositions(obj_enemy.size, obj_enemy.position);
+
+    const xd = posPlayer[1] - posEnemy[0];
+    const yd = -posPlayer[0] - posEnemy[1];
+
+    const sumRadius = obj_player.size + obj_enemy.size;
+    const sqrRadius = sumRadius * sumRadius;
+
+    const distSqr = xd * xd + yd * yd;
+
+    if (distSqr <= sqrRadius) gameStatus = "GAMEOVER";
   }
 }
 
