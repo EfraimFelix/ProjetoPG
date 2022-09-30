@@ -105,6 +105,23 @@ function loadScene() {
   return {
     // Objetos
     u_obj_ball,
+    objs_asteroids: [
+      {
+        direction: [-0.1, -0.1, 0],
+        position: [5, 5, 0],
+        size: 1,
+      },
+      {
+        direction: [-0.15, 0.1, 0],
+        position: [7, -8, 0],
+        size: 1,
+      },
+      {
+        direction: [0.1, 0.1, 0],
+        position: [-10, 10, 0],
+        size: 1,
+      },
+    ],
     obj_player: {
       direction: [0.0, 0.0, 0],
       position: [0, 0, 0],
@@ -184,6 +201,7 @@ function render(time) {
   gl.uniformMatrix4fv(scene.projectionLocation, false, scene.u_projection);
 
   renderPlayer();
+  renderAsteroids(time);
 
   requestAnimationFrame(render);
 }
@@ -271,6 +289,47 @@ function renderPlayer() {
   gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
   // gl.uniform4fv(scene.v_color, [1, 1, 1, 0.5]);
   gl.drawArrays(gl.TRIANGLES, 0, model.geometry.position.length / 3);
+}
+
+//Renderiza os asteroids
+function renderAsteroids(time) {
+  for (let i = 0; i < scene.objs_asteroids.length; i++) {
+    let obj = scene.objs_asteroids[i];
+
+    obj.position[0] += obj.direction[0];
+    obj.position[1] += obj.direction[1];
+
+    // Verifica se o asteroid bateu na borda
+    if (obj.position[0] > pos_final) {
+      obj.position[0] = -pos_final;
+    }
+    if (obj.position[0] < -pos_final) {
+      obj.position[0] = pos_final;
+    }
+
+    if (obj.position[1] > pos_final) {
+      obj.position[1] = -pos_final;
+    }
+    if (obj.position[1] < -pos_final) {
+      obj.position[1] = pos_final;
+    }
+
+    //Para cada asteroid
+    let u_world = m4.identity();
+    u_world = m4.scale(u_world, obj.size * 0.1, obj.size * 0.1, obj.size * 0.1);
+    u_world = m4.multiply(
+      u_world,
+      m4.translation(obj.position[0], obj.position[1], 0)
+    );
+    u_world = m4.multiply(u_world, m4.xRotation(time * 1));
+    u_world = m4.multiply(u_world, m4.zRotation(time * 1));
+
+    u_world = m4.multiply(u_world, scene.u_obj_ball);
+    gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
+    gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
+    // gl.uniform4fv(scene.v_color, [1, 0, 0, 1]);
+    gl.drawArrays(gl.TRIANGLES, 0, model.geometry.position.length / 3);
+  }
 }
 
 function getExtents(positions) {
