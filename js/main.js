@@ -202,6 +202,67 @@ function renderPlayer() {
     )
   );
 
+  // Calculo da velocidade final do objeto
+  const velocityFinal = Math.sqrt(
+    Math.pow(obj_player.velocity[1], 2) + Math.pow(obj_player.velocity[0], 2)
+  );
+
+  let speed = 0.001;
+  if (movement_enable) speed *= 3;
+
+  if (movement == "up" && !movement_enable) {
+    if (velocityFinal > 0.01) {
+      let velocity_angle =
+        (Math.atan(obj_player.velocity[1] / obj_player.velocity[0]) * 180) /
+        Math.PI;
+
+      obj_player.velocity[1] += speed * Math.sin(velocity_angle);
+      obj_player.velocity[0] += speed * Math.cos(velocity_angle);
+    } else {
+      obj_player.velocity[1] = 0;
+      obj_player.velocity[0] = 0;
+    }
+  }
+
+  if (movement == "up" && movement_enable) {
+    if (velocityFinal < 0.2) {
+      obj_player.velocity[1] -= speed * Math.sin(obj_player.angle);
+      obj_player.velocity[0] -= speed * Math.cos(obj_player.angle);
+    }
+  }
+
+  obj_player.position[1] += obj_player.velocity[1];
+  obj_player.position[0] += obj_player.velocity[0];
+
+  const posPlayer = getPositions(
+    scene.obj_player.size,
+    scene.obj_player.position
+  );
+
+  // Verifica se o objeto jogador bateu na borda
+  if (posPlayer[0] > pos_final)
+    obj_player.position[0] = -pos_final / scene.obj_player.size;
+
+  if (posPlayer[0] < -pos_final)
+    obj_player.position[0] = pos_final / scene.obj_player.size;
+
+  if (posPlayer[1] > pos_final)
+    obj_player.position[1] = -pos_final / scene.obj_player.size;
+
+  if (posPlayer[1] < -pos_final)
+    obj_player.position[1] = pos_final / scene.obj_player.size;
+
+  if (rotation === "left") obj_player.angle += 0.1;
+  else if (rotation === "right") obj_player.angle -= 0.1;
+
+  u_world = m4.multiply(
+    u_world,
+    m4.translation(
+      obj_player.position[0],
+      obj_player.position[1],
+      obj_player.position[2]
+    )
+  );
 
   u_world = m4.multiply(u_world, m4.zRotation(obj_player.angle));
 
