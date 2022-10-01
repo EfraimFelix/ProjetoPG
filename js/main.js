@@ -12,7 +12,7 @@ var rotation = null;
 
 var shot = false;
 
-var gameStatus = null;
+var gameStatus = "PAUSE";
 
 var cd = 50; // Cooldown do tiro
 
@@ -37,6 +37,12 @@ document.addEventListener("keydown", (event) => {
   } else if (key === "ArrowRight" || key === "KeyD") {
     rotation = "right";
   }
+});
+
+// Inicia o jogo
+document.getElementById("start").addEventListener("click", () => {
+  gameStatus = "RUN";
+  restartGame();
 });
 
 // Desativa comandos do player
@@ -68,13 +74,13 @@ window.onload = function init() {
   program = initShaders(gl, "shaders/vertex.glsl", "shaders/fragment.glsl");
 
   model = loadModel("ball");
-
   scene = loadScene();
 
   requestAnimationFrame(render);
 };
 
 function loadScene() {
+  // Lista de objetos
   let extents = getExtents(model.geometry.position);
   let range = m4.subtractVectors(extents.max, extents.min);
 
@@ -196,7 +202,7 @@ function loadModel(obj_name) {
 }
 
 function render(time) {
-  time *= 0.001; // convert to seconds
+  time *= 0.001; // tempo em segundos
 
   resizeCanvasToDisplaySize(gl.canvas);
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -209,17 +215,159 @@ function render(time) {
   gl.uniformMatrix4fv(scene.viewLocation, false, scene.u_view);
   gl.uniformMatrix4fv(scene.projectionLocation, false, scene.u_projection);
 
-  renderPlayer();
-  renderAsteroids(time);
-  renderBullet();
+  if (gameStatus == "RUN") {
+    renderAsteroids(time);
+    renderPlayer();
+    renderBullet();
 
-  verifyCollisionAsteroids();
-  verifyCollisionPlayer();
-  verifyCollisionBullet();
+    verifyCollisionAsteroids();
+    verifyCollisionPlayer();
+    verifyCollisionBullet();
+  }
 
-  if (gameStatus != "GAMEOVER") requestAnimationFrame(render);
+  if (gameStatus == "GAMEOVER") {
+    const elemText = document.getElementById("gameover");
+    elemText.innerHTML = "GAME OVER";
+    elemText.removeAttribute("hidden");
+    document.getElementById("blur").removeAttribute("hidden");
+    const elemText2 = document.getElementById("start");
+    elemText2.innerHTML = "TENTAR NOVAMENTE";
+    elemText2.removeAttribute("hidden");
+  }
+
+  if (gameStatus == "WIN") {
+    const elemText = document.getElementById("gameover");
+    elemText.innerHTML = "PARABÉNS";
+    elemText.removeAttribute("hidden");
+    document.getElementById("blur").removeAttribute("hidden");
+    const elemText2 = document.getElementById("start");
+    elemText2.innerHTML = "JOGAR NOVAMENTE";
+    elemText2.removeAttribute("hidden");
+  }
+
+  requestAnimationFrame(render);
 }
 
+// Reinicia o jogo, zerando os valores
+function restartGame() {
+  scene = loadScene();
+  generateAsteroids(10);
+  document.getElementById("score").innerHTML = 0;
+  document.getElementById("gameover").setAttribute("hidden", "");
+  document.getElementById("blur").setAttribute("hidden", "");
+  document.getElementById("start").setAttribute("hidden", "");
+}
+
+// Gera os asteroides no jogo e os adiciona na lista de objetos
+function generateAsteroids(qtd) {
+  for (let i = 0; i < qtd; i++) {
+    const spdX = parseFloat((Math.random() * 0.5).toFixed(2)) - 0.25; // Gerando valores entre -0.25 e 0.25
+    const spdY = parseFloat((Math.random() * 0.5).toFixed(2)) - 0.25; // Gerando valores entre -0.25 e 0.25
+
+    let posX = 0;
+    let posY = 0;
+
+    const posPlayer = getPositions(
+      scene.obj_player.size,
+      scene.obj_player.position
+    );
+    
+    const playerX = posPlayer[1];
+    const playerY = -posPlayer[0];
+
+    let distSqr = 0;
+    do {
+      posX = Math.floor(Math.random() * (pos_final * 2)) - pos_final;
+      posY = Math.floor(Math.random() * (pos_final * 2)) - pos_final;
+
+      const xd = playerX - posX;
+      const yd = playerY - posY;
+      distSqr = xd * xd + yd * yd;
+    } while (distSqr < 100);
+
+    scene.objs_asteroids.push({
+      direction: [spdX, spdY, 0],
+      position: [posX, posY, 0],
+      size: 1,
+      colide: false,
+    });
+  }
+}
+
+// Gera o tiro do jogador
+function renderBullet() {
+  cd--;
+  const obj_player = scene.obj_player;
+
+  let angle = obj_player.angle;
+
+  const distorX = 2 * Math.cos(angle + Math.PI / 2);
+  const distorY = 2 * Math.sin(angle + Math.PI / 2);
+
+  let coordX = obj_player.position[1] * 2 + distorX;
+  let coordY = -obj_player.position[0] * 2 + distorY;
+
+  if (shot && cd < 0) {
+    cd = 10;
+    if (scene.obj_player.bullets.length < 3)
+      scene.obj_player.bullets.push({
+        direction: [0.0, 0.0, 0],
+        position: [coordX, coordY, 0],
+        angle: angle,
+        size: 0.5,
+        velocity: [
+          Math.cos(angle + Math.PI / 2),
+          Math.sin(angle + Math.PI / 2),
+          0,
+        ],
+        lifetime: 40,
+      });
+  }
+
+  for (let i = 0; i < scene.obj_player.bullets.length; i++) {
+    const obj_bullet = scene.obj_player.bullets[i];
+
+    obj_bullet.lifetime--;
+
+    obj_bullet.position[0] += obj_bullet.velocity[0];
+    obj_bullet.position[1] += obj_bullet.velocity[1];
+
+    let u_world = m4.identity();
+    u_world = m4.multiply(
+      u_world,
+      m4.scale(
+        u_world,
+        obj_bullet.size * 0.1,
+        obj_bullet.size * 0.1,
+        obj_bullet.size * 0.1
+      )
+    );
+    u_world = m4.multiply(
+      u_world,
+      m4.translation(obj_bullet.position[0], obj_bullet.position[1], 0.1)
+    );
+
+    u_world = m4.multiply(u_world, scene.u_obj_ball);
+    gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
+    gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
+    // gl.uniform4fv(scene.v_color, [1, 1, 0, 1]);
+    gl.drawArrays(gl.TRIANGLES, 0, model.geometry.position.length / 3);
+
+    if (obj_bullet.lifetime <= 0) {
+      scene.obj_player.bullets.splice(i, 1);
+    }
+  }
+  
+  const screen = {
+    angle: obj_player.angle.toFixed(3),
+    playerX: obj_player.position[0].toFixed(3),
+    playerY: obj_player.position[1].toFixed(3),
+    bala_X: coordX.toFixed(3),
+    bala_Y: coordY.toFixed(3),
+    cd: cd,
+  };
+}
+  
 // Renderiza o jogador
 function renderPlayer() {
   const obj_player = scene.obj_player;
@@ -305,7 +453,7 @@ function renderPlayer() {
   gl.drawArrays(gl.TRIANGLES, 0, model.geometry.position.length / 3);
 }
 
-//Renderiza os asteroids
+// Renderiza os asteroides
 function renderAsteroids(time) {
   for (let i = 0; i < scene.objs_asteroids.length; i++) {
     let obj = scene.objs_asteroids[i];
@@ -313,7 +461,7 @@ function renderAsteroids(time) {
     obj.position[0] += obj.direction[0];
     obj.position[1] += obj.direction[1];
 
-    // Verifica se o asteroid bateu na borda
+    // Verifica se o objeto bateu na borda
     if (obj.position[0] > pos_final) {
       obj.position[0] = -pos_final;
     }
@@ -328,7 +476,7 @@ function renderAsteroids(time) {
       obj.position[1] = pos_final;
     }
 
-    //Para cada asteroid
+    // for each object
     let u_world = m4.identity();
     u_world = m4.scale(u_world, obj.size * 0.1, obj.size * 0.1, obj.size * 0.1);
     u_world = m4.multiply(
@@ -346,78 +494,36 @@ function renderAsteroids(time) {
   }
 }
 
-// Gera o tiro do jogador
-function renderBullet() {
-  cd--;
-  const obj_player = scene.obj_player;
-
-  let angle = obj_player.angle;
-
-  const distorX = 2 * Math.cos(angle + Math.PI / 2);
-  const distorY = 2 * Math.sin(angle + Math.PI / 2);
-
-  let coordX = obj_player.position[1] * 2 + distorX;
-  let coordY = -obj_player.position[0] * 2 + distorY;
-
-  if (shot && cd < 0) {
-    cd = 10;
-    if (scene.obj_player.bullets.length < 3)
-      scene.obj_player.bullets.push({
-        direction: [0.0, 0.0, 0],
-        position: [coordX, coordY, 0],
-        angle: angle,
-        size: 0.5,
-        velocity: [
-          Math.cos(angle + Math.PI / 2),
-          Math.sin(angle + Math.PI / 2),
-          0,
-        ],
-        lifetime: 40,
-      });
-  }
-
+// Verifica a colisão entre o tiro e os asteroides
+function verifyCollisionBullet() {
   for (let i = 0; i < scene.obj_player.bullets.length; i++) {
-    const obj_bullet = scene.obj_player.bullets[i];
+    let bullet = scene.obj_player.bullets[i];
 
-    obj_bullet.lifetime--;
+    for (let j = 0; j < scene.objs_asteroids.length; j++) {
+      let obj2 = scene.objs_asteroids[j];
 
-    obj_bullet.position[0] += obj_bullet.velocity[0];
-    obj_bullet.position[1] += obj_bullet.velocity[1];
+      const posBullet = getPositions(bullet.size, bullet.position);
+      const posEnemy = getPositions(obj2.size, obj2.position);
 
-    let u_world = m4.identity();
-    u_world = m4.multiply(
-      u_world,
-      m4.scale(
-        u_world,
-        obj_bullet.size * 0.1,
-        obj_bullet.size * 0.1,
-        obj_bullet.size * 0.1
-      )
-    );
-    u_world = m4.multiply(
-      u_world,
-      m4.translation(obj_bullet.position[0], obj_bullet.position[1], 0.1)
-    );
+      const xd = posBullet[0] - posEnemy[0];
+      const yd = posBullet[1] - posEnemy[1];
 
-    u_world = m4.multiply(u_world, scene.u_obj_ball);
-    gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
-    gl.uniformMatrix4fv(scene.worldObjLocation, false, u_world);
-    // gl.uniform4fv(scene.v_color, [1, 1, 0, 1]);
-    gl.drawArrays(gl.TRIANGLES, 0, model.geometry.position.length / 3);
+      const sumRadius = parseFloat(bullet.size) + parseFloat(obj2.size);
+      const sqrRadius = sumRadius * sumRadius;
 
-    if (obj_bullet.lifetime <= 0) {
-      scene.obj_player.bullets.splice(i, 1);
+      const distSqr = Math.sqrt(xd * xd + yd * yd);
+
+      if (distSqr <= sqrRadius) {
+        scene.objs_asteroids.splice(j, 1);
+        const elem = document.getElementById("score");
+        let score = parseInt(elem.innerHTML);
+        score++;
+        elem.innerHTML = score;
+
+        if (scene.objs_asteroids.length == 0) gameStatus = "WIN";
+      }
     }
   }
-
-  const screen = {
-    angle: obj_player.angle.toFixed(3),
-    playerX: obj_player.position[0].toFixed(3),
-    playerY: obj_player.position[1].toFixed(3),
-    bala_X: coordX.toFixed(3),
-    bala_Y: coordY.toFixed(3),
-    cd: cd,
-  };
 }
 
 // Verifica a colisão entre cada asteroide
@@ -425,7 +531,7 @@ function verifyCollisionAsteroids() {
   for (let i = 0; i < scene.objs_asteroids.length; i++)
     scene.objs_asteroids[i].colide = false;
 
-  // Verificando colisão entre asteroids na cena
+  // Verificando colisão entre objetos inimigos na cena
   for (let i = 0; i < scene.objs_asteroids.length; i++) {
     let obj_enemy_1 = scene.objs_asteroids[i];
 
@@ -444,7 +550,6 @@ function verifyCollisionAsteroids() {
 
       const distSqr = Math.sqrt(xd * xd + yd * yd);
 
-      //Resolvendo colisao se houver
       if (distSqr <= sqrRadius) {
         scene.objs_asteroids[i].colide = true;
 
@@ -510,38 +615,6 @@ function verifyCollisionPlayer() {
   }
 }
 
-// Verifica a colisão entre o tiro e os asteroides
-function verifyCollisionBullet() {
-  for (let i = 0; i < scene.obj_player.bullets.length; i++) {
-    let bullet = scene.obj_player.bullets[i];
-
-    for (let j = 0; j < scene.objs_asteroids.length; j++) {
-      let obj2 = scene.objs_asteroids[j];
-
-      const posBullet = getPositions(bullet.size, bullet.position);
-      const posEnemy = getPositions(obj2.size, obj2.position);
-
-      const xd = posBullet[0] - posEnemy[0];
-      const yd = posBullet[1] - posEnemy[1];
-
-      const sumRadius = parseFloat(bullet.size) + parseFloat(obj2.size);
-      const sqrRadius = sumRadius * sumRadius;
-
-      const distSqr = Math.sqrt(xd * xd + yd * yd);
-
-      if (distSqr <= sqrRadius) {
-        scene.objs_asteroids.splice(j, 1);
-        const elem = document.getElementById("score");
-        let score = parseInt(elem.innerHTML);
-        score++;
-        elem.innerHTML = score;
-
-        if (scene.objs_asteroids.length == 0) gameStatus = "WIN";
-      }
-    }
-  }
-}
-
 function getExtents(positions) {
   const min = positions.slice(0, 3);
   const max = positions.slice(0, 3);
@@ -556,16 +629,13 @@ function getExtents(positions) {
 }
 
 function resizeCanvasToDisplaySize(canvas) {
-  // Lookup the size the browser is displaying the canvas in CSS pixels.
   const displayWidth = canvas.clientWidth;
   const displayHeight = canvas.clientHeight;
 
-  // Check if the canvas is not the same size.
   const needResize =
     canvas.width !== displayWidth || canvas.height !== displayHeight;
 
   if (needResize) {
-    // Make the canvas the same size
     canvas.width = displayWidth;
     canvas.height = displayHeight;
   }
@@ -579,6 +649,7 @@ function getPositions(size, positions) {
   return positions.map((x) => x / ratio);
 }
 
+// Graus para radianos
 function degToRad(deg) {
   return (deg * Math.PI) / 180;
 }
