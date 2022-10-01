@@ -2,27 +2,40 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=yes"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Example</title>
     <script type="text/javascript" src="js/webgl-utils.js"></script>
     <script type="text/javascript" src="js/m4.js"></script>
     <script type="text/javascript" src="js/initShaders2.js"></script>
     <script type="text/javascript" src="js/obj.js"></script>
     <script type="text/javascript" src="js/flatten.js"></script>
-    <script type="text/javascript" src="js/main.js"></script>
+    <link rel="stylesheet" href="css/style.css" />
   </head>
 
   <body>
-    <div class="description">This is my example</div>
-    <div>
-      SCORE
-      <div id="score">0</div>
+    <div id="space"></div>
+    <div id="blur" class="blur"></div>
+    <div id="content">
+      <div id="gameover">ASTEROIDS</div>
+      <button id="start">INICIAR</button>
     </div>
-    <canvas id="gl-canvas" width="512" height="512" style="border: 1px solid"
-      >Oops ... your browser doesn't support the HTML5 canvas element</canvas
-    >
+
+    <div id="container">
+      <h1>ASTEROIDS</h1>
+      <div id="center">
+        <div id="gamedata">
+          <div>
+            SCORE
+            <div id="score">0</div>
+          </div>
+        </div>
+        <div id="space"></div>
+        <canvas id="gl-canvas" width="512" height="512"
+          >Oops ... your browser doesn't support the HTML5 canvas
+          element</canvas
+        >
+      </div>
+    </div>
   </body>
+  <script type="text/javascript" src="js/main.js"></script>
 </html>
