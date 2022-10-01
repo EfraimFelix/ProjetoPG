@@ -117,26 +117,7 @@ function loadScene() {
   return {
     // Objetos
     u_obj_ball,
-    objs_asteroids: [
-      {
-        direction: [-0.2, 0, 0],
-        position: [5, 5, 0],
-        size: 1,
-        colide: false,
-      },
-      {
-        direction: [0.1, 0.2, 0],
-        position: [-8, -5, 0],
-        size: 1,
-        colide: false,
-      },
-      {
-        direction: [0.1, -0.05, 0],
-        position: [-10, 10, 0],
-        size: 1,
-        colide: false,
-      },
-    ],
+    objs_asteroids: [],
     obj_player: {
       direction: [0.0, 0.0, 0],
       position: [0, 0, 0],
@@ -357,7 +338,7 @@ function renderBullet() {
       scene.obj_player.bullets.splice(i, 1);
     }
   }
-  
+
   const screen = {
     angle: obj_player.angle.toFixed(3),
     playerX: obj_player.position[0].toFixed(3),
@@ -367,7 +348,7 @@ function renderBullet() {
     cd: cd,
   };
 }
-  
+
 // Renderiza o jogador
 function renderPlayer() {
   const obj_player = scene.obj_player;
